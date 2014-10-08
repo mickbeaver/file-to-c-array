@@ -25,21 +25,23 @@
        for byte-value across input-subsequence
        for i from 1
        do (format output-stream
-		  "0x~X~[~:;,~]"
+		  "0x~2,'0X~[~:;,~]"
 		  byte-value
 		  (- row-length i)))
     (unless last-row-p
-      (format output-stream ","))
-    (format output-stream " /* ")
-    (loop
-       for byte-value across input-subsequence
-       for i from 1
-       do (format output-stream
-		  "~A~[ */~%~:;~]"
-		  (if (graphic-char-p (code-char byte-value))
-		      (code-char byte-value)
-		      #\.)
-		  (- row-length i)))
+      (format output-stream ",~%"))
+    
+    ;; This can turn into tri-graphs... fix later
+    ;; (format output-stream " /* ")
+    ;; (loop
+    ;;    for byte-value across input-subsequence
+    ;;    for i from 1
+    ;;    do (format output-stream
+    ;; 		  "~A~[ */~%~:;~]"
+    ;; 		  (if (graphic-char-p (code-char byte-value))
+    ;; 		      (code-char byte-value)
+    ;; 		      #\.)
+    ;; 		  (- row-length i)))
     (when last-row-p
       (format output-stream "};~%"))))
 
@@ -56,7 +58,7 @@
 
 (defun interactive-main (argv command-line-args)
   (multiple-value-bind (args options errors) (getopt:getopt argv command-line-args)
-    (format t "args=~A~%options=~A~%errors=~A~%" args options errors)
+    ;(format t "args=~A~%options=~A~%errors=~A~%" args options errors)
     (let ((input-filename (get-option-value "input" options))
 	  (output-filename (get-option-value "output" options))
 	  (num-columns (or (parse-integer (get-option-value "columns" options "") :junk-allowed t)
