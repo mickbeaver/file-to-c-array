@@ -18,33 +18,42 @@
 	option-value
 	default-value)))
 
-(defun write-row (input-subsequence output-stream last-row-p)
-  (let ((row-length (length input-subsequence)))
-    (format output-stream "    ")
+(defun bytes-to-hex-string (input-subsequence last-row-p)
+  (let ((num-bytes (length input-subsequence)))
+    (with-output-to-string (s)
+      (loop
+	 for byte-value across input-subsequence
+	 for i from 1
+	 do (format s
+		    ;; 1) print hex 2) if not last byte, print comma
+		    "0x~2,'0X~[~:;,~]"
+		    byte-value
+		    (- num-bytes i)))
+      (unless last-row-p
+	(format s ",")))))
+
+(defun bytes-to-comment-string (input-subsequence)
+  (with-output-to-string (s)
     (loop
        for byte-value across input-subsequence
        for i from 1
-       do (format output-stream
-		  "0x~2,'0X~[~:;,~]"
-		  byte-value
-		  (- row-length i)))
-    (unless last-row-p
-      (format output-stream ",~%"))
-    
-    ;; This can turn into tri-graphs... fix later
-    ;; (format output-stream " /* ")
-    ;; (loop
-    ;;    for byte-value across input-subsequence
-    ;;    for i from 1
-    ;;    do (format output-stream
-    ;; 		  "~A~[ */~%~:;~]"
-    ;; 		  (if (graphic-char-p (code-char byte-value))
-    ;; 		      (code-char byte-value)
-    ;; 		      #\.)
-    ;; 		  (- row-length i)))
+       do (format s
+     		  "~A "
+     		  (if (graphic-char-p (code-char byte-value))
+     		      (code-char byte-value)
+     		      #\.)))))
+
+(defun write-row (input-subsequence output-stream last-row-p max-num-columns)
+  (let ((bytes-string (bytes-to-hex-string input-subsequence last-row-p))
+	(comment-string (bytes-to-comment-string input-subsequence))
+	(bytes-string-width (* (length "0x00,") max-num-columns))
+	(comment-string-width (* (length "X ") max-num-columns)))
+    (format output-stream
+	    "    ~v,A /* ~v,A */~%"
+	    bytes-string-width bytes-string
+	    comment-string-width comment-string)
     (when last-row-p
       (format output-stream "};~%"))))
-
 
 (defun write-c-array (input-sequence output-stream num-columns)
   (let ((num-bytes (length input-sequence)))
@@ -54,10 +63,12 @@
        do (write-row
 	   (subseq input-sequence i (min (+ i num-columns) num-bytes))
 	   output-stream
-	   (>= (+ i num-columns) num-bytes)))))
+	   (>= (+ i num-columns) num-bytes)
+	   num-columns))))
 
 (defun interactive-main (argv command-line-args)
   (multiple-value-bind (args options errors) (getopt:getopt argv command-line-args)
+    (declare (ignore args errors))
     ;(format t "args=~A~%options=~A~%errors=~A~%" args options errors)
     (let ((input-filename (get-option-value "input" options))
 	  (output-filename (get-option-value "output" options))
@@ -70,7 +81,6 @@
 	(with-open-file (output-stream output-filename :direction :output :if-exists :supersede)
 	  (write-c-array (read-stream-into-array input-stream) output-stream num-columns)))))
   t)
-	
 
 (defun print-usage-and-exit (program-name)
   (format t "usage: ~A --input=FILE --output=FILE [--columns=NUM]~%" program-name)
@@ -78,7 +88,7 @@
   (format t "    -i|--input FILE    Input filename~%")
   (format t "    -o|--output FILE   Output filename~%")
   (format t "    -c|--columns NUM   Number of columns to print (default=8)~%")
-  #+sbcl (sb-ext:quit :unix-status 0))
+  #+sbcl (sb-ext:exit :code 0))
 
 (defun main ()
   (let ((argv #+sbcl sb-ext:*posix-argv*))
