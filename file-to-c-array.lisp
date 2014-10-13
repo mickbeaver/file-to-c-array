@@ -59,7 +59,7 @@
   (let ((num-bytes (length input-sequence)))
     (format output-stream "char const unsigned data[~A] = {~%" num-bytes)
     (loop
-       for i from 0 to num-bytes by num-columns
+       for i from 0 below num-bytes by num-columns
        do (write-row
 	   (subseq input-sequence i (min (+ i num-columns) num-bytes))
 	   output-stream
